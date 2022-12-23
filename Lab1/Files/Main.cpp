@@ -1,104 +1,100 @@
 #include <iostream>
 #include <fstream>
-#include <algorithm>
+#include <conio.h>
 #include <string>
-#include <Windows.h>
-#include "file_of_massage.h"
-#include <vector>
-#include <list>
+#include <windows.h>
+#include "employee.h"
+#pragma warning(disable: 4996)
 
-using namespace std;
-
-HANDLE start_process(wstring command_line) {
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-	ZeroMemory(&si, sizeof(si));
-	si.cb = sizeof(si);
-	if (!CreateProcess(NULL, (LPWSTR)command_line.c_str(), NULL, NULL,
-		FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)) {
-		return NULL;
-	}
-	CloseHandle(pi.hThread);
-	return pi.hProcess;
+char* get_binary_data_for_creator(char* binary, int n) {
+	char data[200] = "Creator.exe ";
+	strcat(data, binary);
+	strcat(data, " ");
+	strcat(data, to_string(n).c_str());
+	return data;
 }
-
+void runCreatorProcess(char data[]) {
+	STARTUPINFO si;
+	PROCESS_INFORMATION piApp;
+	ZeroMemory(&si, sizeof(STARTUPINFO));
+	si.cb = sizeof(STARTUPINFO);
+	if (!CreateProcess(NULL, data, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &piApp)) {
+		std::cout << "Process is not created\n";
+		return;
+	}
+	WaitForSingleObject(piApp.hProcess, INFINITE);
+	CloseHandle(piApp.hThread);
+	CloseHandle(piApp.hProcess);
+}
+void readFile(char* fileName) {
+	ifstream in;
+	in.open(fileName, ios::binary);
+	cout << "Employees: \n";
+	while (EOF != in.peek()) {
+		Employee employee;
+		in.read((char*)&employee, sizeof(Employee));
+		std::cout << "Employee number:\n" << employee.num << "\nEmployee name:\n" << employee.name << "\nEmployee hours:\n" << employee.hours << "\n\n";
+	}
+	in.close();
+}
+char* get_binary_data_for_reporter(char* binaryFile, char* fileName, int pay) {
+	char data[100] = "Reporter.exe ";
+	strcat(data, binaryFile);
+	strcat(data, " ");
+	strcat(data, fileName);
+	strcat(data, " ");
+	strcat(data, to_string(pay).c_str());
+	return data;
+}
+void runReporterProcess(char dataForReporter[]) {
+	STARTUPINFO si;
+	PROCESS_INFORMATION piApp;
+	ZeroMemory(&si, sizeof(STARTUPINFO));
+	si.cb = sizeof(STARTUPINFO);
+	if (!CreateProcess(NULL, dataForReporter, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &piApp)) {
+		std::cout << "Process is not created\n";
+		return;
+	}
+	WaitForSingleObject(piApp.hProcess, INFINITE);
+	CloseHandle(piApp.hThread);
+	CloseHandle(piApp.hProcess);
+}
+void readFile(char* fileName) {
+	ifstream in;
+	char line[200];
+	in.open(fileName);
+	while (!in.eof()) {
+		in.getline(line, 200);
+		std::cout << line << "\n";
+	}
+}
 int main() {
-	wstring file_name;
-	cout << "Enter name of the file:";
-	wcin >> file_name;
-	fstream file(file_name,ios::binary|ios::out);
-	int number_of_records;
-	cout << "Enter number:";
-	cin >> number_of_records;
-	if (!file.is_open()) {
-		cout << "Error. Impossible creating of the file!";
-		return 0;
-	}
-	file.close();
-	int number_of_senders;
-	cout << "Enter senders:";
-	cin >> number_of_senders;
-	HANDLE* senders = new HANDLE[number_of_senders];
-	HANDLE* events = new HANDLE[number_of_senders];
-	HANDLE mutex = CreateMutex(NULL, FALSE, L"mutex");
-	HANDLE write_sem = CreateSemaphore(NULL, number_of_records, number_of_records, L"write_sem");
-	HANDLE read_sem = CreateSemaphore(NULL, 0, number_of_records, L"read_sem");
-	if (!mutex || !write_sem || !read_sem){
-		cout << "Error";
-		return -1;
-	}
-	for (int i = 0; i < number_of_senders; ++i) {
-		wstring command_line = L"Sender.exe " + file_name + L" " + to_wstring(number_of_records) + L" " + to_wstring(i);
 
-		HANDLE event = CreateEvent(NULL, FALSE, FALSE, (to_wstring(i) + L"ready").c_str());
-		events[i] = event;
-		senders[i] = start_process(command_line);
-		if (senders[i] == NULL) {
-			cout << "Error while creating process";
-			return -1;
-		}
-	}
-	WaitForMultipleObjects(number_of_senders, events, TRUE, INFINITE);
-	int action = 1;
-	while (true) {
-		cout << "1 to read message" << "\n";
-		cout << "0 to exit" << "\n";
-		cin >> action;
-		if (action != 0 && action != 1) {
-			cout << "Unknown command";
-			continue;
-		}
-		if (action == 0) {
-			break;
-		}
-		WaitForSingleObject(read_sem, INFINITE);
-		WaitForSingleObject(mutex, INFINITE);
-		file.open(file_name, ios::binary | ios::in);
-		message mes;
-		file >> mes;
-		cout << "new message:" << mes.get_text() << "\n";
-		vector<message> file_text;
-		while (file>>mes) {
-			file_text.push_back(mes);
-		}
-		file.close();
-		file.open(file_name, ios::binary | ios::out);
-		for (int i = 0; i < file_text.size(); ++i) {
-			file << file_text[i];
-		}
-		file.close();
-		ReleaseMutex(mutex);
-		ReleaseSemaphore(write_sem, 1, NULL);
-	}
-
-	for (int i = 0; i < number_of_senders; ++i) {
-		CloseHandle(events[i]);
-		CloseHandle(senders[i]);
-	}
-	delete[] events;
-	delete[] senders;
-	CloseHandle(mutex);
-	CloseHandle(read_sem);
-	CloseHandle(write_sem);
+	SetConsoleCP(1251);
+	SetConsoleOutputCP(1251);
+	char* binaryFileName = new char[30];
+	std::cout << "Enter binary file name:\n";
+	std::cin >> binaryFileName;
+	std::cout << "\n";
+	int reportAmount;
+	std::cout << "Enter amount of reports:\n";
+	std::cin >> reportAmount;
+	std::cout << "\n";
+	char dataForCreator[100];
+	strcpy(dataForCreator, get_binary_data_for_creator(binaryFileName, reportAmount));
+	runCreatorProcess(dataForCreator);
+	readBinaryFile(binaryFileName);
+	char* reporFileName = new char[30];
+	std::cout << "\nEnter report file name:\n";
+	std::cin >> reporFileName;
+	std::cout << "\n";
+	double pay;
+	std::cout << "Enter pay for hour:\n";
+	std::cin >> pay;
+	std::cout << "\n";
+	char dataForReporter[100];
+	strcpy(dataForReporter, get_binary_data_for_reporter(binaryFileName ,reporFileName, pay));
+	runReporterProcess(dataForReporter);
+	readFile(reporFileName);
 	return 0;
 }
