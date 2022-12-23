@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <string>
 #include <Windows.h>
-#include "message.h"
+#include "file_of_massage.h"
 #include <vector>
 #include <list>
 
